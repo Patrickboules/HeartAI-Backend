@@ -100,7 +100,7 @@ if not os.path.exists(SECRETS_FILE_PATH):
                 "token_uri": "https://accounts.google.com/o/oauth2/token",
                 "redirect_uris": [
                     # Include the configured redirect URI
-                    'http://localhost:8000/vitals/callback/', 
+                    'http://heartai-backend-production-09ef.up.railway.app/vitals/callback/', 
                 ]
             }
         }
@@ -116,7 +116,7 @@ if not os.path.exists(SECRETS_FILE_PATH):
 # Set the settings variable to the generated file path
 CLIENT_SECRETS_FILE = SECRETS_FILE_PATH
 
-GOOGLE_FIT_REDIRECT_URI = 'http://localhost:8000/vitals/callback/'  
+GOOGLE_FIT_REDIRECT_URI = 'http://heartai-backend-production-09ef.up.railway.app/vitals/callback/'  
 GOOGLE_FIT_SCOPES = [
     'https://www.googleapis.com/auth/fitness.activity.read',
     'https://www.googleapis.com/auth/userinfo.email',
