@@ -15,6 +15,7 @@ import os
 import environ
 import json
 from django.core.exceptions import ImproperlyConfigured
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,23 +23,6 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
-def get_windows_host_ip():
-    try:
-        with open("/etc/resolv.conf", "r") as f:
-            for line in f:
-                if line.startswith("nameserver"):
-                    return line.split()[1]  # Extract the IP address
-    except Exception as e:
-        print(f"Error: {e}")
-    return None
-
-db_url_template = env('DATABASE_URL_TEMPLATE')
-final_db_url = env('DATABASE_URL', default=db_url_template)
-
-if 'HOST_PLACEHOLDER' in final_db_url:
-    wsl_ip = get_windows_host_ip()
-    if wsl_ip:
-        final_db_url = final_db_url.replace("HOST_PLACEHOLDER", wsl_ip)
 
 
 # Quick-start development settings - unsuitable for production
@@ -48,7 +32,7 @@ if 'HOST_PLACEHOLDER' in final_db_url:
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = []
 
@@ -145,7 +129,7 @@ GOOGLE_FIT_SCOPES = [
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': env.db_url(final_db_url), 
+    "default": dj_database_url.config(default=env("DATABASE_URL"))
 }
 
 

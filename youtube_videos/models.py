@@ -1,3 +1,6 @@
 from django.db import models
 
-# Create your models here.
+class Videos(models.Model):
+    title = models.CharField()
+    description = models.TextField()
+    link = models.URLField()
