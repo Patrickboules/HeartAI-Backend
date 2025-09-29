@@ -13,7 +13,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 
 from Users.models import Patient
-from .models import UserCredentials,UserVitals
+from .models import UserCredentials,UserVitals,UserBPM
 
 
 @api_view(['GET'])
@@ -139,6 +139,11 @@ def fetch_data(request):
             'oxygen_sat' : oxygen_saturation_data
             }
         )
+
+        UserBPM.objects.create(
+            patient = patient_intended,
+            heart_rate = heart_rate_data
+        )
         
 
         return Response(health_data)
@@ -233,3 +238,26 @@ def fetch_oxygen_saturation_data(service, dataset_id):
         oxygen_saturation = values[0].get('fpVal')
 
     return oxygen_saturation
+
+@api_view(['GET'])
+def Ai_pred(request):
+    user_email = request.query_params.get('email')
+    patient_intended = get_object_or_404(Patient,email = user_email)
+
+    bpm_readings = UserBPM.objects.filter(patient = patient_intended).values('heart_rate')
+    bpm_readings = list(bpm_readings)
+
+    api_url = "https://sharafo-InnovatorsHeartAI.hf.space/predict"
+
+    data ={
+        'heartbeat':[bpm_readings]
+    }
+
+    response = requests.post(
+            api_url, 
+            json=data, 
+            timeout=10
+        )
+    prediction = response.json()
+
+    return Response(prediction)

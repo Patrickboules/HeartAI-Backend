@@ -25,4 +25,12 @@ class UserVitals(models.Model):
     oxygen_sat = models.FloatField(null=True,blank=True)    
 
 
+class UserBPM(models.Model):
+    patient = models.ForeignKey(Patient,on_delete=models.CASCADE)
+    heart_rate = models.FloatField(null=True,blank=True)
+
+
+    
+
+
 
