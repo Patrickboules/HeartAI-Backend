@@ -40,7 +40,7 @@ def create_Doctor(request):
         )
 
 @api_view(['GET'])
-def get_Doctors_list():
+def get_Doctors_list(request):
     try:
         doctors = Doctor.objects.values('full_name','email','specialization','description')
         doctors_Dict = [{"full_name": doctor['full_name'],
