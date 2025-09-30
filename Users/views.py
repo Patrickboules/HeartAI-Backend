@@ -55,14 +55,13 @@ def get_Doctors_list(request):
         
         doctors_Dict = []
         for doctor in doctors:
-            image_url = doctor.image.url if doctor.image else None
             
             doctors_Dict.append({
                 "full_name": doctor.full_name,
                 "email": doctor.email,
                 "specialization": doctor.specialization,
                 "description": doctor.description,
-                "image_url": image_url
+                "image_url": doctor.image
             })
             
         return Response(doctors_Dict)
