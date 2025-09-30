@@ -127,8 +127,6 @@ def fetch_data(request):
         start_time = now - (24 * 60 * 60 * 1000)
         dataset_id = f"{start_time}-{now}"
 
-        health_data = {}
-
         activity_data = fetch_activity_data(service, dataset_id)
 
         blood_pressure_data = fetch_blood_pressure_data(service, dataset_id)
@@ -155,7 +153,16 @@ def fetch_data(request):
         )
         
 
-        return Response(health_data)
+        return Response(
+            {
+            'steps': activity_data['step_count'],
+            'calories': activity_data['calories'],
+            'systolic_blood_pressure': blood_pressure_data['systolic'],
+            'diastolic_blood_pressure': blood_pressure_data['diastolic'],
+            'heart_rate' : heart_rate_data,
+            'oxygen_sat' : oxygen_saturation_data
+            }
+        )
     except Exception as e:
         return Response({'error': str(e)}, status=500)
     
