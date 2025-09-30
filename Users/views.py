@@ -166,6 +166,7 @@ def pending_requests_list(request):
 
 @api_view(['PUT'])
 def respond_request(request):
+
     request_id = request.data.get('request_id')
     action = request.data.get('action')
 
@@ -211,3 +212,24 @@ def respond_request(request):
         )
 
     
+@api_view(['PUT'])
+def Login(request):
+    user_email = request.data.get('email')
+    user_password = request.data.get('password')
+
+    patient_intended = Patient.objects.get(email = user_email)
+    if patient_intended.password == 'Userpassword':
+        patient_intended.password = user_password
+        patient_intended.save()
+        return Response({
+            "status":"success"
+        })
+    elif patient_intended.password == user_password:
+        return Response({
+            "status":"success"
+        })
+    else:
+        return Response({
+            "status":"fail"
+        })
+

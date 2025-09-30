@@ -1,4 +1,3 @@
-import datetime
 import time
 import requests
 
@@ -101,7 +100,17 @@ def fetch_data(request):
     user_email = request.query_params.get('email')
     patient_intended = get_object_or_404(Patient,email = user_email)
 
+
     credentials = patient_intended.credentials
+
+    print(f"\n--- CREDENTIALS DEBUG START for {user_email} ---")
+    print(f"Token: {credentials.access_token}")
+    print(f"Refresh Token: {credentials.refresh_token}")
+    print(f"Token URI: {credentials.token_uri}")
+    print(f"Client ID: {credentials.client_id}")
+    print(f"Client Secret: {credentials.client_secret}")
+    print(f"Scopes: {credentials.scopes}")
+    print(f"--- CREDENTIALS DEBUG END ---\n")
     user_credentials = Credentials(
             token=credentials.access_token,
             refresh_token=credentials.refresh_token,
@@ -110,10 +119,8 @@ def fetch_data(request):
             client_secret=credentials.client_secret,
             scopes=credentials.scopes
         )
-
     try:
         
-
         service = build('fitness', 'v3', credentials=user_credentials)
 
         now = int(time.time() * 1000)
@@ -150,7 +157,7 @@ def fetch_data(request):
 
         return Response(health_data)
     except Exception as e:
-        return Response({'error': credentials}, status=500)
+        return Response({'error': str(e)}, status=500)
     
 def fetch_activity_data(service, dataset_id):
     step_count_data = service.users().dataSources().datasets().get(

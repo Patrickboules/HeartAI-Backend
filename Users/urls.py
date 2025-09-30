@@ -13,6 +13,7 @@ urlpatterns = [
     path('assignment-requests/create/', create_request, name='create_assignment_request'),
     path('assignment-requests/list/', pending_requests_list, name='list_pending_requests'),
     path('assignment-requests/respond/', respond_request, name='respond_to_request'),  
+
+    path('login/',Login,name='Login')
 ]
 
-"Login"

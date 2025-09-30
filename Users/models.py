@@ -5,7 +5,7 @@ class Doctor(models.Model):
     last_name = models.CharField(max_length = 100)
     full_name = models.CharField(max_length=200,null=True)
     email = models.EmailField(unique = True,primary_key=True,default="Doctor Username Email")
-    password = models.CharField(max_length=128,null=True)
+    password = models.CharField(max_length=128,null=True,default='Userpassword')
     specialization = models.CharField(max_length = 100,null=True)
     description = models.TextField(blank=True)
 
@@ -14,7 +14,7 @@ class Patient(models.Model):
     last_name = models.CharField(max_length = 100)
     full_name = models.CharField(max_length=200,null=True)
     email = models.EmailField(unique = True,primary_key=True,default="Patient Email")
-    password = models.CharField(max_length=128,null=True)
+    password = models.CharField(max_length=128,null=True,default='Userpassword')
     doctor = models.ForeignKey(
         Doctor,
         on_delete =models.CASCADE,

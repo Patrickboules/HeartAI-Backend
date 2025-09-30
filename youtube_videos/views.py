@@ -7,7 +7,7 @@ from .models import Videos
 
 @api_view(['GET'])
 def get_videos_list(request):
-    videos_list = Videos.objects.all().values('id','title','mini_')
+    videos_list = Videos.objects.all().values('id','title','mini_description')
     videos_list = list(videos_list)
     return Response(videos_list)
 
@@ -19,7 +19,8 @@ def get_video(request):
         {
             'title':video.title,
             'description':video.description,
-            'link':video.link
+            'link':video.link,
+            'mini_description':video.mini_description
         },
                 status=status.HTTP_200_OK
     )
