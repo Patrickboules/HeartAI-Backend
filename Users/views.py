@@ -73,7 +73,7 @@ def get_Doctors_list(request):
 def create_Patient(request):
     data = request.data
 
-    required_fields = ['first_name', 'last_name', 'email','password']
+    required_fields = ['first_name', 'last_name', 'email']
     missing_fields = [field for field in required_fields if field not in data]
 
     if missing_fields:
@@ -93,7 +93,6 @@ def create_Patient(request):
             last_name = data['last_name'],
             full_name = f"{data['first_name']} {data['last_name']}", 
             email = data['email'],
-            password = make_password(data['password']),
             doctor = doctor_chosen
             )
 
