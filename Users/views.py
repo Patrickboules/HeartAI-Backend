@@ -102,7 +102,7 @@ def get_Patients_list(request):
     return Response(patient_list)
 
 @api_view(['PUT'])
-def remove_patient(request):
+def remove(request):
     patient_email = request.query_params.get('patient_email')
     if not patient_email:
         return Response(

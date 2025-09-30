@@ -101,9 +101,8 @@ def fetch_data(request):
     user_email = request.query_params.get('email')
     patient_intended = get_object_or_404(Patient,email = user_email)
 
-    try:
-        credentials = patient_intended.credentials
-        user_credentials = Credentials(
+    credentials = patient_intended.credentials
+    user_credentials = Credentials(
             token=credentials.access_token,
             refresh_token=credentials.refresh_token,
             token_uri=credentials.token_uri,
@@ -111,6 +110,9 @@ def fetch_data(request):
             client_secret=credentials.client_secret,
             scopes=credentials.scopes
         )
+
+    try:
+        
 
         service = build('fitness', 'v3', credentials=user_credentials)
 
@@ -148,7 +150,7 @@ def fetch_data(request):
 
         return Response(health_data)
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        return Response({'error': credentials}, status=500)
     
 def fetch_activity_data(service, dataset_id):
     step_count_data = service.users().dataSources().datasets().get(

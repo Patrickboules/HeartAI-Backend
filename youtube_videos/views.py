@@ -4,11 +4,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Videos
 
-# Create your views here.
 
 @api_view(['GET'])
 def get_videos_list(request):
-    videos_list = Videos.objects.all().values('id','title')
+    videos_list = Videos.objects.all().values('id','title','mini_')
     videos_list = list(videos_list)
     return Response(videos_list)
 

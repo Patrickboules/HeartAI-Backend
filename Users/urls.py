@@ -7,9 +7,12 @@ urlpatterns = [
 
     path('patients/create/', create_Patient, name='create_patient'),  
     path('patients/list/', get_Patients_list, name='get_patients_list'),  
-    path('patients/remove/', remove_patient, name='remove_patient'),
+    path('remove/', remove, name='remove'),
+    
 
     path('assignment-requests/create/', create_request, name='create_assignment_request'),
     path('assignment-requests/list/', pending_requests_list, name='list_pending_requests'),
     path('assignment-requests/respond/', respond_request, name='respond_to_request'),  
 ]
+
+"Login"
