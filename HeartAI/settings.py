@@ -49,7 +49,8 @@ INSTALLED_APPS = [
     'Users',
     'rest_framework',
     'UserVitals',
-    'youtube_videos'
+    'youtube_videos',
+    'storages'
 
 ]
 
@@ -167,6 +168,31 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
+CLOUDFARE_R2_BUCKET="heartai-r2"
+CLOUDFARE_R2_ACCESS_KEY=env("CLOUDFARE_R2_ACCESS_KEY")
+CLOUDFARE_R2_SECRET_KEY=env("CLOUDFARE_R2_SECRET_KEY")
+CLOUDFARE_R2_BUCKET_ENDPOINT=env("CLOUDFARE_R2_BUCKET_ENDPOINT")
+CLOUDFARE_R2_SIGNATURE_VERSION = 's3v4' 
+
+AWS_STORAGE_BUCKET_NAME = CLOUDFARE_R2_BUCKET  
+AWS_ACCESS_KEY_ID = CLOUDFARE_R2_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY = CLOUDFARE_R2_SECRET_KEY
+
+# The critical setting to point to Cloudflare R2 instead of AWS S3
+AWS_S3_ENDPOINT_URL = CLOUDFARE_R2_BUCKET_ENDPOINT 
+
+# This R2-required signature version is correct.
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_LOCATION = 'media'
+AWS_DEFAULT_ACL = 'private'
+
+
+MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -8,7 +8,10 @@ from .models import Doctor,Patient,AssignmentRequest
 @api_view(['POST'])
 def create_Doctor(request):
     data = request.data
-    required_fields = ['first_name', 'last_name', 'password','email','specialization','description']
+    
+    image_file = request.FILES.get('image') 
+    
+    required_fields = ['first_name', 'last_name', 'email', 'specialization', 'description']
     missing_fields = [field for field in required_fields if field not in data]
 
     if missing_fields:
@@ -16,16 +19,21 @@ def create_Doctor(request):
             {"error": f"Missing fields: {', '.join(missing_fields)}"},
             status=status.HTTP_400_BAD_REQUEST
         )
+        
     try:
-        doctor = Doctor.objects.create(
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            full_name = f"{data['first_name']} {data['last_name']}", 
-            password = make_password(data['password']),
-            email=data['email'],
-            specialization = data['specialization'],
-            description = data['description']
-        )
+        create_args = {
+            'first_name': data['first_name'],
+            'last_name': data['last_name'],
+            'full_name': f"{data['first_name']} {data['last_name']}", 
+            'email': data['email'],
+            'specialization': data['specialization'],
+            'description': data['description'],
+        }
+
+        if image_file:
+            create_args['image'] = image_file
+
+        doctor = Doctor.objects.create(**create_args)
 
         return Response(
             {
@@ -33,6 +41,7 @@ def create_Doctor(request):
             },
             status=status.HTTP_201_CREATED
         )
+        
     except Exception as e:
         return Response(
             {"error": str(e)},
@@ -42,16 +51,24 @@ def create_Doctor(request):
 @api_view(['GET'])
 def get_Doctors_list(request):
     try:
-        doctors = Doctor.objects.values('full_name','email','specialization','description')
-        doctors_Dict = [{"full_name": doctor['full_name'],
-                        "email":doctor['email'],
-                        "specialization":doctor['specialization'],
-                        "description":doctor['description']
-                        } for doctor in doctors]
+        doctors = Doctor.objects.all() 
+        
+        doctors_Dict = []
+        for doctor in doctors:
+            image_url = doctor.image.url if doctor.image else None
+            
+            doctors_Dict.append({
+                "full_name": doctor.full_name,
+                "email": doctor.email,
+                "specialization": doctor.specialization,
+                "description": doctor.description,
+                "image_url": image_url
+            })
+            
         return Response(doctors_Dict)
+    
     except Exception as e:
-        return Response({'error':str(e)})
-
+        return Response({'error': str(e)}, status=500)
 @api_view(['POST'])
 def create_Patient(request):
     data = request.data
