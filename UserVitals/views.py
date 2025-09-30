@@ -183,8 +183,8 @@ def fetch_activity_data(service, dataset_id):
         total_calories += value.get('fpVal', 0.0)
 
     return {
-        'step_count': step_count_data,
-        'calories': calories_data,
+        'step_count': total_steps,
+        'calories': total_calories,
     }
 
 def fetch_blood_pressure_data(service, dataset_id):
