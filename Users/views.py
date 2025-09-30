@@ -50,7 +50,7 @@ def get_Doctors_list(request):
                         } for doctor in doctors]
         return Response(doctors_Dict)
     except Exception as e:
-        return Response({'error':e})
+        return Response({'error':str(e)})
 
 @api_view(['POST'])
 def create_Patient(request):
