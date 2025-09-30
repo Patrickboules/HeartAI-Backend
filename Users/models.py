@@ -8,10 +8,10 @@ class Doctor(models.Model):
     password = models.CharField(max_length=128,null=True,default='Userpassword',blank=True)
     specialization = models.CharField(max_length = 100,null=True)
     description = models.TextField(blank=True)
-    image = models.ImageField(
-            upload_to='doctors/',  
+    image = models.URLField(
             blank=True,           
-            null=True           
+            null=True,
+            unique=True      
         )
 class Patient(models.Model):
     first_name = models.CharField(max_length = 100) 
