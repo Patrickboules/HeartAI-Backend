@@ -41,15 +41,16 @@ def create_Doctor(request):
 
 @api_view(['GET'])
 def get_Doctors_list():
-    doctors = Doctor.objects.values('full_name','email','specialization','description')
-    doctors_Dict = [{"full_name": doctor['full_name'],
-                     "email":doctor['email'],
-                     "specialization":doctor['specialization'],
-                     "description":doctor['description']
-                     } for doctor in doctors]
-    return Response(doctors_Dict)
-
-    pass
+    try:
+        doctors = Doctor.objects.values('full_name','email','specialization','description')
+        doctors_Dict = [{"full_name": doctor['full_name'],
+                        "email":doctor['email'],
+                        "specialization":doctor['specialization'],
+                        "description":doctor['description']
+                        } for doctor in doctors]
+        return Response(doctors_Dict)
+    except Exception as e:
+        return Response({'error':e})
 
 @api_view(['POST'])
 def create_Patient(request):
