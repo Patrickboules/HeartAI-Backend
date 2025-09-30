@@ -121,7 +121,7 @@ def fetch_data(request):
         )
     try:
         
-        service = build('fitness', 'v3', credentials=user_credentials)
+        service = build('fitness', 'v1', credentials=user_credentials)
 
         now = int(time.time() * 1000)
         start_time = now - (24 * 60 * 60 * 1000)
