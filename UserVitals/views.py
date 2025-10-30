@@ -103,14 +103,6 @@ def fetch_data(request):
 
     credentials = patient_intended.credentials
 
-    print(f"\n--- CREDENTIALS DEBUG START for {user_email} ---")
-    print(f"Token: {credentials.access_token}")
-    print(f"Refresh Token: {credentials.refresh_token}")
-    print(f"Token URI: {credentials.token_uri}")
-    print(f"Client ID: {credentials.client_id}")
-    print(f"Client Secret: {credentials.client_secret}")
-    print(f"Scopes: {credentials.scopes}")
-    print(f"--- CREDENTIALS DEBUG END ---\n")
     user_credentials = Credentials(
             token=credentials.access_token,
             refresh_token=credentials.refresh_token,

@@ -2,13 +2,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from .models import Doctor,Patient,AssignmentRequest
 
 @api_view(['POST'])
 def create_Doctor(request):
     data = request.data
-    required_fields = ['first_name', 'last_name', 'password','email','specialization','description']
+    required_fields = ['first_name', 'last_name','email','specialization','description']
     missing_fields = [field for field in required_fields if field not in data]
 
     if missing_fields:
@@ -65,6 +65,12 @@ def create_Patient(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     try:
+        if Patient.objects.filter(email = data['email']).exists():
+            return Response(
+            {"error": f"User Already exists"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
         doctor_email = data.get('doctor')
         if doctor_email:
             doctor_chosen =  get_object_or_404(Doctor,email = doctor_email)
@@ -78,6 +84,7 @@ def create_Patient(request):
             email = data['email'],
             password = make_password(data['password']),
             doctor = doctor_chosen
+            auth_method = 'manual'
             )
 
         return Response(
