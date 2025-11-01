@@ -3,7 +3,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
-from .models import Doctor,Patient,AssignmentRequest
+from .models import Doctor,Patient,AssignmentRequest,sUserCredentials
+
 
 @api_view(['POST'])
 def create_Doctor(request):
@@ -217,26 +218,95 @@ def respond_request(request):
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
     
-@api_view(['PUT'])
-def Login(request):
-    user_email = request.data.get('email')
-    user_password = request.data.get('password')
+@api_view(['GET'])
+def get_auth(request):
+    user_email = request.query_params.get('email')
 
-    patient_intended = Patient.objects.get(email = user_email)
-    if patient_intended.password == 'Userpassword':
-        patient_intended.password = user_password
-        patient_intended.save()
+    flow = Flow.from_client_secrets_file(
+        settings.CLIENT_SECRETS_FILE,
+        scopes=settings.GOOGLE_FIT_SCOPES,
+        redirect_uri=settings.GOOGLE_FIT_REDIRECT_URI
+    )
+    
+    extra_params = {
+        'access_type': 'offline',
+        'include_granted_scopes': 'true',
+    }
+    if user_email:
+        extra_params['login_hint'] = user_email
+
+    authorization_url, state = flow.authorization_url(
+        **extra_params
+    )
+
+    request.session['oauth_state'] = state
+    return Response({'authorization_url': authorization_url})
+
+
+@api_view(['GET'])
+def callback(request):
+    state = request.GET.get('state')
+    authorization_code = request.GET.get('code')
+
+    if not state or not authorization_code:
+        return Response({'error': 'Invalid state parameter'}, status=400)
+    
+    try:
+        flow = Flow.from_client_secrets_file(
+            settings.CLIENT_SECRETS_FILE,
+            scopes=settings.GOOGLE_FIT_SCOPES,
+            redirect_uri=settings.GOOGLE_FIT_REDIRECT_URI
+        )
+
+        flow.fetch_token(code=authorization_code)
+        credentials = flow.credentials
+
+        response = requests.get(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {credentials.token}'}
+        )
+        response.raise_for_status()
+        user_info = response.json()
+
+        user_email = user_info.get('email')
+        given_name = user_info.get('given_name', 'User')
+        family_name = user_info.get('family_name', '')
+
+        patient_intended,created = Patient.objects.get_or_create(
+            email = user_email,
+            defaults = {
+                'first name' = given_name,
+                'last name' = family_name,
+                'full name' = f"{given_name} {family_name}".strip(),
+                'auth method' = 'google',
+                'password' = make_password(None)
+            }
+            )
+
+        if not created and patient_intended.auth_method != 'google':
+            patient_intended.auth_method = 'google'
+            patient_intended.save()
+
+        UserCredentials.objects.update_or_create(
+            patient = patient_intended,
+             defaults={
+        'access_token': credentials.token,
+        'refresh_token': credentials.refresh_token,
+        'token_uri': credentials.token_uri,
+        'client_id': credentials.client_id,
+        'client_secret': credentials.client_secret,
+        'scopes': credentials.scopes,
+        'expires_at': credentials.expiry 
+        }
+        )
+
         return Response({
-            "status":"success"
-        })
-    elif patient_intended.password == user_password:
-        return Response({
-            "status":"success"
-        })
-    else:
-        return Response({
-            "status":"fail"
+            'message': 'Authentication successful',
+            'email': user_email,
+            'token': credentials.token,
         })
 
+    except Exception as e:
+        # Handle errors during token exchange
+        return Response({'error': str(e)}, status=500)
