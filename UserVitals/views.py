@@ -1,20 +1,16 @@
 import time
 import requests
 
-from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from rest_framework.decorators import api_view 
 from rest_framework.response import Response
 
-from django.conf import settings
 from django.shortcuts import get_object_or_404
 
 from Users.models import Patient
-from .models import UserCredentials,UserVitals,UserBPM
-
-
+from .models import UserVitals,UserBPM
 
 
 @api_view(['GET'])

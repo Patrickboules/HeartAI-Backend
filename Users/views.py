@@ -3,13 +3,16 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
-from .models import Doctor,Patient,AssignmentRequest,sUserCredentials
+from .models import Doctor,Patient,AssignmentRequest,UserCredentials
+from google_auth_oauthlib.flow import Flow
+from django.conf import settings
+import requests
 
 
 @api_view(['POST'])
 def create_Doctor(request):
     data = request.data
-    required_fields = ['first_name', 'last_name','email','specialization','description']
+    required_fields = ['first_name', 'last_name','email','specialization','description','password']
     missing_fields = [field for field in required_fields if field not in data]
 
     if missing_fields:
@@ -84,7 +87,7 @@ def create_Patient(request):
             full_name = f"{data['first_name']} {data['last_name']}", 
             email = data['email'],
             password = make_password(data['password']),
-            doctor = doctor_chosen
+            doctor = doctor_chosen,
             auth_method = 'manual'
             )
 
@@ -110,7 +113,7 @@ def get_Patients_list(request):
     return Response(patient_list)
 
 @api_view(['PUT'])
-def remove(request):
+def remove_patient_assignment(request):
     patient_email = request.query_params.get('patient_email')
     if not patient_email:
         return Response(
@@ -246,6 +249,7 @@ def get_auth(request):
 
 @api_view(['GET'])
 def callback(request):
+
     state = request.GET.get('state')
     authorization_code = request.GET.get('code')
 
@@ -276,13 +280,13 @@ def callback(request):
         patient_intended,created = Patient.objects.get_or_create(
             email = user_email,
             defaults = {
-                'first name' = given_name,
-                'last name' = family_name,
-                'full name' = f"{given_name} {family_name}".strip(),
-                'auth method' = 'google',
-                'password' = make_password(None)
+            'first_name': given_name,  # Corrected key
+            'last_name': family_name,  # Corrected key
+            'full_name': f"{given_name} {family_name}".strip(), # Corrected key
+            'auth_method': 'google',   # Corrected key
+            'password': make_password(None)
             }
-            )
+        )
 
         if not created and patient_intended.auth_method != 'google':
             patient_intended.auth_method = 'google'
@@ -310,3 +314,45 @@ def callback(request):
     except Exception as e:
         # Handle errors during token exchange
         return Response({'error': str(e)}, status=500)
+    
+@api_view(['POST'])
+def Login(request):
+    data = request.data
+
+    user_email = data['email']
+    provided_password = data['password']
+
+    if not user_email or not provided_password:
+        return Response({"error": "No Email or password provided"},status=400)
+    
+    try:
+        patient_intended = Patient.objects.get(email=user_email)
+        if patient_intended.auth_method == 'manual':
+            if not check_password(provided_password,patient_intended.password):
+                return Response(
+                    {"error": "Invalid credentials"}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                    )
+            else:
+                return Response({
+                "message": "Login successful",
+                "email": patient_intended.email,
+                "full_name": patient_intended.full_name
+            }
+            , status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {"error": "Please sign in with Google"}, 
+                status=status.HTTP_400_BAD_REQUEST
+                )
+        
+    
+    except Patient.DoesNotExist:
+        return Response({"error": "Invalid credentials"}, status=401)
+    
+    
+
+
+
+
+    

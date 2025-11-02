@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.hashers import make_password
+
 
 class Doctor(models.Model):
     first_name = models.CharField(max_length = 100)
