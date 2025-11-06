@@ -1,15 +1,19 @@
-from rest_framework import status
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.hashers import make_password, check_password
 from .models import Doctor,Patient,AssignmentRequest,UserCredentials
-from google_auth_oauthlib.flow import Flow
 from django.conf import settings
+
+from rest_framework import status
+from rest_framework.decorators import api_view,permission_classes
+from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.response import Response
+
+from google_auth_oauthlib.flow import Flow
 import requests
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def create_Doctor(request):
     data = request.data
     required_fields = ['first_name', 'last_name','email','specialization','description','password']
@@ -44,6 +48,7 @@ def create_Doctor(request):
         )
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_Doctors_list(request):
     try:
         doctors = Doctor.objects.values('full_name','email','specialization','description')
@@ -57,6 +62,7 @@ def get_Doctors_list(request):
         return Response({'error':str(e)})
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def create_Patient(request):
     data = request.data
 
@@ -104,6 +110,7 @@ def create_Patient(request):
         )
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_Patients_list(request):
     doctor_email = request.query_params.get('doctor')
     doctor_request = get_object_or_404(Doctor,email = doctor_email)
@@ -113,6 +120,7 @@ def get_Patients_list(request):
     return Response(patient_list)
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def remove_patient_assignment(request):
     patient_email = request.query_params.get('patient_email')
     if not patient_email:
@@ -137,6 +145,7 @@ def remove_patient_assignment(request):
         )
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_request(request):
     patient_email = request.data.get('patient_email')
     doctor_email = request.data.get('doctor_email')
@@ -164,6 +173,7 @@ def create_request(request):
         )
     
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def pending_requests_list(request):
     doctor_email = request.query_params.get('doctor_email')
     doctor_intended = get_object_or_404(Doctor,email = doctor_email)
@@ -176,6 +186,7 @@ def pending_requests_list(request):
     return Response(pending_list)
 
 @api_view(['PUT'])
+@permission_classes([IsAuthenticated])
 def respond_request(request):
 
     request_id = request.data.get('request_id')
@@ -223,6 +234,7 @@ def respond_request(request):
         )
     
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_auth(request):
     user_email = request.query_params.get('email')
 
@@ -245,7 +257,6 @@ def get_auth(request):
 
     request.session['oauth_state'] = state
     return Response({'authorization_url': authorization_url})
-
 
 @api_view(['GET'])
 def callback(request):
@@ -316,6 +327,7 @@ def callback(request):
         return Response({'error': str(e)}, status=500)
     
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def Login(request):
     data = request.data
 
