@@ -51,8 +51,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'UserVitals',
-    'youtube_videos'
-    'rest_framework_simplejwt.token_blacklist'
+    'youtube_videos',
+    'rest_framework_simplejwt.token_blacklist',
+    'django_extensions'
 
 ]
 
