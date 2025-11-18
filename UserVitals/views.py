@@ -4,22 +4,43 @@ import requests
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from rest_framework.decorators import api_view 
+from rest_framework.decorators import api_view,permission_classes
+from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-from django.shortcuts import get_object_or_404
-
-from Users.models import Patient
+from Users.models import Patient,Doctor
 from .models import UserVitals,UserBPM
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def fetch_data(request):
-    user_email = request.query_params.get('email')
-    patient_intended = get_object_or_404(Patient,email = user_email)
+    user = request.user
+    
+    if isinstance(user,Doctor):
+        patient_email = request.query_params.get('email')
+        try:
+            patient_intended = Patient.objects.get(email = patient_email)
+            if patient_intended.doctor != user:
+                return Response(
+                {
+                    'error':"User Not Assigned to this Doctor"
+                },
+                status.HTTP_403_FORBIDDEN
+            )
+            else:
+                user = patient_intended
 
-
-    credentials = patient_intended.credentials
+        except:
+            return Response(
+                {
+                    'error':"User Doesn't exist"
+                },
+                status.HTTP_401_UNAUTHORIZED
+            )
+            
+    credentials = user.credentials
 
     user_credentials = Credentials(
             token=credentials.access_token,
@@ -46,7 +67,7 @@ def fetch_data(request):
         oxygen_saturation_data = fetch_oxygen_saturation_data(service, dataset_id)
 
         UserVitals.objects.update_or_create(
-            patient = patient_intended,
+            patient = user,
             defaults={
             'steps': activity_data['step_count'],
             'calories': activity_data['calories'],
@@ -58,7 +79,7 @@ def fetch_data(request):
         )
 
         UserBPM.objects.create(
-            patient = patient_intended,
+            patient = user,
             heart_rate = heart_rate_data
         )
         
@@ -166,11 +187,33 @@ def fetch_oxygen_saturation_data(service, dataset_id):
     return oxygen_saturation
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def Ai_pred(request):
-    user_email = request.query_params.get('email')
-    patient_intended = get_object_or_404(Patient,email = user_email)
+    user = request.user
+    
+    if isinstance(user,Doctor):
+        patient_email = request.query_params.get('email')
+        try:
+            patient_intended = Patient.objects.get(email = patient_email)
+            if patient_intended.doctor != user:
+                return Response(
+                {
+                    'error':"User Not Assigned to this Doctor"
+                },
+                status.HTTP_403_FORBIDDEN
+            )
+            else:
+                user = patient_intended
 
-    bpm_readings = UserBPM.objects.filter(patient = patient_intended).values('heart_rate')
+        except:
+            return Response(
+                {
+                    'error':"User Doesn't exist"
+                },
+                status.HTTP_401_UNAUTHORIZED
+            )
+
+    bpm_readings = UserBPM.objects.filter(patient = user).values('heart_rate')
     bpm_readings = list(bpm_readings)
 
     api_url = "https://sharafo-InnovatorsHeartAI.hf.space/predict"
