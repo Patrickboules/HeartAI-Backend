@@ -40,7 +40,7 @@ def get_video(request):
             {
                 "Error":"Video Doesn't Exist"
             },
-            status.HTTP_400_BAD_REQUEST
+            status.HTTP_404_NOT_FOUND
         )
     except (ValueError, ValidationError):
         return Response(
