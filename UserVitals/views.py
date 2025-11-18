@@ -3,6 +3,8 @@ import requests
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework import status
@@ -20,6 +22,13 @@ def fetch_data(request):
     
     if isinstance(user,Doctor):
         patient_email = request.query_params.get('email')
+
+        if not patient_email:
+            return Response(
+                {'error': 'Patient email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         try:
             patient_intended = Patient.objects.get(email = patient_email)
             if patient_intended.doctor != user:
@@ -27,10 +36,9 @@ def fetch_data(request):
                 {
                     'error':"User Not Assigned to this Doctor"
                 },
-                status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN
             )
-            else:
-                user = patient_intended
+            user = patient_intended
 
         except:
             return Response(
@@ -39,6 +47,12 @@ def fetch_data(request):
                 },
                 status.HTTP_401_UNAUTHORIZED
             )
+
+    if not hasattr(user, 'credentials') or user.credentials is None:
+        return Response(
+            {'error': 'User credentials not found'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
             
     credentials = user.credentials
 
@@ -78,10 +92,11 @@ def fetch_data(request):
             }
         )
 
-        UserBPM.objects.create(
-            patient = user,
-            heart_rate = heart_rate_data
-        )
+        if heart_rate_data is not None:
+            UserBPM.objects.create(
+                patient = user,
+                heart_rate = heart_rate_data
+            )
         
 
         return Response(
@@ -94,8 +109,16 @@ def fetch_data(request):
             'oxygen_sat' : oxygen_saturation_data
             }
         )
+    except HttpError as e:
+        return Response(
+            {'error': f'Google Fitness API error: {str(e)}'},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        return Response(
+            {'error': f'Server error: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
     
 def fetch_activity_data(service, dataset_id):
     step_count_data = service.users().dataSources().datasets().get(
@@ -166,6 +189,10 @@ def fetch_heart_rate_data(service, dataset_id):
             total_bpm += bpm
             count += 1
 
+    if count > 0:
+        return total_bpm / count
+    return None
+
 def fetch_oxygen_saturation_data(service, dataset_id):
     oxygen_saturation_data = service.users().dataSources().datasets().get(
         userId='me',
@@ -193,6 +220,11 @@ def Ai_pred(request):
     
     if isinstance(user,Doctor):
         patient_email = request.query_params.get('email')
+        if not patient_email:
+            return Response(
+                {'error': 'Patient email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             patient_intended = Patient.objects.get(email = patient_email)
             if patient_intended.doctor != user:
@@ -214,19 +246,41 @@ def Ai_pred(request):
             )
 
     bpm_readings = UserBPM.objects.filter(patient = user).values('heart_rate')
-    bpm_readings = list(bpm_readings)
+    bpm_readings_list = list(bpm_readings)
 
+    if not bpm_readings_list:
+        return Response(
+            {'error': 'No heart rate data available for prediction'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
     api_url = "https://sharafo-InnovatorsHeartAI.hf.space/predict"
 
     data ={
-        'heartbeat':[bpm_readings]
+        'heartbeat':bpm_readings_list
     }
-
-    response = requests.post(
-            api_url, 
-            json=data, 
-            timeout=10
+    try:
+        response = requests.post(
+                api_url, 
+                json=data, 
+                timeout=10
+            )
+        response.raise_for_status()
+        prediction = response.json()
+        return Response(prediction)
+    
+    except requests.exceptions.Timeout:
+        return Response(
+            {'error': 'AI prediction service timeout'},
+            status=status.HTTP_504_GATEWAY_TIMEOUT
         )
-    prediction = response.json()
-
-    return Response(prediction)
+    except requests.exceptions.RequestException as e:
+        return Response(
+            {'error': f'AI prediction service error: {str(e)}'},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
+    except ValueError:
+        return Response(
+            {'error': 'Invalid response from AI prediction service'},
+            status=status.HTTP_502_BAD_GATEWAY
+        )
