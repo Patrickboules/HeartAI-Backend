@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -17,6 +17,13 @@ def get_videos_list(request):
 @permission_classes([AllowAny])
 def get_video(request):
     vid_id = request.query_params.get('id')
+
+    if not vid_id:
+        return Response(
+            {'error': 'Video ID is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
     try:
         video = Videos.objects.get(id = vid_id)
         return Response(
@@ -33,6 +40,17 @@ def get_video(request):
             {
                 "Error":"Video Doesn't Exist"
             },
-            status.HTTP_401_UNAUTHORIZED
+            status.HTTP_400_BAD_REQUEST
+        )
+    except (ValueError, ValidationError):
+        return Response(
+            {'error': 'Invalid video ID format'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    except Videos.DoesNotExist:
+        return Response(
+            {'error': "Video doesn't exist"},
+            status=status.HTTP_404_NOT_FOUND
         )
 
