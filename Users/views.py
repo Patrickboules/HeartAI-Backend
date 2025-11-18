@@ -7,10 +7,18 @@ from rest_framework import status
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from google_auth_oauthlib.flow import Flow
 import requests
 
+
+def gen_JWT(user):
+    refresh = RefreshToken.for_user(user)
+    return{
+        'access': str(refresh.access_token),
+        'refresh': str(refresh)
+    }
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -112,16 +120,30 @@ def create_Patient(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_Patients_list(request):
-    doctor_email = request.query_params.get('doctor')
-    doctor_request = get_object_or_404(Doctor,email = doctor_email)
-    patient_list = Patient.objects.filter(doctor = doctor_request).values('full_name','email')
+
+    user = request.user
+    if not isinstance(user, Doctor):
+        return Response(
+            {"error": "Only doctors can access patient lists"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    patient_list = Patient.objects.filter(doctor = user).values('full_name','email')
     patient_list = [{'full_name':patient['full_name'],'email':patient['email']} for patient in patient_list]
 
-    return Response(patient_list)
+    return Response(patient_list,status=status.HTTP_200_OK)
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def remove_patient_assignment(request):
+    user = request.user
+
+    if not isinstance(user, Doctor):
+        return Response(
+            {"error": "Only doctors can remove patient assignments"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     patient_email = request.query_params.get('patient_email')
     if not patient_email:
         return Response(
@@ -130,6 +152,11 @@ def remove_patient_assignment(request):
         )
     try:
         patient_targeted = get_object_or_404(Patient,email = patient_email)
+        if patient_targeted.doctor != user:
+            return Response(
+                {"error": "You can only remove your own patients"},
+                status=status.HTTP_403_FORBIDDEN
+            )
         patient_targeted.doctor = None
         patient_targeted.save()
 
@@ -147,19 +174,36 @@ def remove_patient_assignment(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_request(request):
-    patient_email = request.data.get('patient_email')
+    user = request.user
     doctor_email = request.data.get('doctor_email')
 
-    if not patient_email or not doctor_email:
+    if not isinstance(user,Patient):
+        return Response(
+            {'error': 'Only Patients can create Doctor Requests'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if not doctor_email:
         return Response(
             {"error": "There are missing parameters"},
             status=status.HTTP_400_BAD_REQUEST
         )
     try:
-        patient_targeted = get_object_or_404(Patient,email = patient_email)
         doctor_targeted = get_object_or_404(Doctor,email = doctor_email)
+
+        existing_request = AssignmentRequest.objects.filter(
+            patient=user,
+            doctor=doctor_targeted,
+            status='pending'
+        ).exists()
+        
+        if existing_request:
+            return Response(
+                {"error": "You already have a pending request to this doctor"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         AssignmentRequest.objects.create(
-            patient = patient_targeted,
+            patient = user,
             doctor = doctor_targeted,
         )
         return Response(
@@ -175,19 +219,34 @@ def create_request(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pending_requests_list(request):
-    doctor_email = request.query_params.get('doctor_email')
-    doctor_intended = get_object_or_404(Doctor,email = doctor_email)
+    user = request.user
+    if not isinstance(user,Doctor):
+        return Response({'error':"Only Doctors can view pending requests"},
+                        status=status.HTTP_403_FORBIDDEN)
 
     pending_list = AssignmentRequest.objects.filter(
-        doctor = doctor_intended,
-        status = 'pending').values('id','patient__full_name')
-    pending_list = [{'id':req['id'],'patient_name':req['patient__full_name']} for req in pending_list]
+        doctor = user,
+        status = 'pending').values('id','patient__full_name','patient__email')
+    
+    pending_list = [
+        {
+            'id':req['id'],
+            'patient_name':req['patient__full_name'],
+            'patient_email':req['patient__email']
+         } for req in pending_list]
 
-    return Response(pending_list)
+    return Response(pending_list,status=status.HTTP_200_OK)
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def respond_request(request):
+    user = request.user
+
+    if not isinstance(user,Doctor):
+        return Response(
+            {'error':"Only Doctors can view pending requests"},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
     request_id = request.data.get('request_id')
     action = request.data.get('action')
@@ -200,6 +259,12 @@ def respond_request(request):
     
     try:
         assignment_request = get_object_or_404(AssignmentRequest, id=request_id)
+
+        if assignment_request.doctor != user:
+            return Response(
+                {'error':'User not allowed to respond to this request'},
+                status.HTTP_403_FORBIDDEN
+            )
 
         if assignment_request.status != 'pending':
             return Response(
@@ -219,7 +284,7 @@ def respond_request(request):
                 {"message": "Request accepted. Patient assigned to the doctor."},
                 status=status.HTTP_200_OK
             )
-        elif action == 'reject':
+        else:
             assignment_request.status = 'rejected'
             assignment_request.save()
 
@@ -259,6 +324,7 @@ def get_auth(request):
     return Response({'authorization_url': authorization_url})
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def callback(request):
 
     state = request.GET.get('state')
@@ -291,10 +357,10 @@ def callback(request):
         patient_intended,created = Patient.objects.get_or_create(
             email = user_email,
             defaults = {
-            'first_name': given_name,  # Corrected key
-            'last_name': family_name,  # Corrected key
-            'full_name': f"{given_name} {family_name}".strip(), # Corrected key
-            'auth_method': 'google',   # Corrected key
+            'first_name': given_name,  
+            'last_name': family_name, 
+            'full_name': f"{given_name} {family_name}".strip(), 
+            'auth_method': 'google', 
             'password': make_password(None)
             }
         )
@@ -316,10 +382,13 @@ def callback(request):
         }
         )
 
+        token = gen_JWT(patient_intended)
         return Response({
             'message': 'Authentication successful',
             'email': user_email,
-            'token': credentials.token,
+            'google_token': credentials.token,
+            'refresh_token':token['refresh'],
+            'access_token':token['access']
         })
 
     except Exception as e:
@@ -328,11 +397,12 @@ def callback(request):
     
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def Login(request):
+def Patient_Login(request):
     data = request.data
 
     user_email = data['email']
     provided_password = data['password']
+
 
     if not user_email or not provided_password:
         return Response({"error": "No Email or password provided"},status=400)
@@ -346,11 +416,17 @@ def Login(request):
                     status=status.HTTP_401_UNAUTHORIZED
                     )
             else:
-                return Response({
+                token = gen_JWT(patient_intended)
+
+                return Response(
+                {
                 "message": "Login successful",
                 "email": patient_intended.email,
-                "full_name": patient_intended.full_name
-            }
+                "full_name": patient_intended.full_name,
+                "access_token":token['access'],
+                "refresh_token":token['refresh']
+
+                }
             , status=status.HTTP_200_OK)
         else:
             return Response(
@@ -360,10 +436,46 @@ def Login(request):
         
     
     except Patient.DoesNotExist:
-        return Response({"error": "Invalid credentials"}, status=401)
+        return Response({"error": "Invalid credentials"}, status.HTTP_401_UNAUTHORIZED)
     
     
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def Doctor_Login(request):
+    data = request.data
+    doctor_email = data['email']
+    doctor_password = data['password']
 
+    if not doctor_email or not doctor_password:
+        return Response(
+            {
+                'error':'Missing Credentials'
+            },
+            status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        doctor_intended = Doctor.objects.get(email = doctor_email)
+
+        if check_password(doctor_password, doctor_intended.password):
+            user_token = gen_JWT(doctor_intended)
+            return Response(
+                    {
+                        'Message':'Login was Succesful',
+                        'Email':doctor_intended.email,
+                        'Full Name': doctor_intended.full_name,
+                        'Refresh_Token': user_token['refresh'],
+                        'Access_Token': user_token['access']
+                    },
+                    
+                    status.HTTP_200_OK
+                )
+        else:
+            return Response(
+                {'Error':'Invalid Credentials'},
+                status.HTTP_401_UNAUTHORIZED
+                )
+    except Doctor.DoesNotExist:
+        return Response({"error": "Invalid credentials"}, status.HTTP_401_UNAUTHORIZED)
 
 
 
