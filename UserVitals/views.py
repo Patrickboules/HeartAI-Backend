@@ -31,7 +31,7 @@ def fetch_data(request):
         
         try:
             patient_intended = Patient.objects.get(email = patient_email)
-            if patient_intended.doctor != user:
+            if ValidateDoctorToPatient(user,patient_intended):
                 return Response(
                 {
                     'error':"User Not Assigned to this Doctor"
@@ -40,12 +40,12 @@ def fetch_data(request):
             )
             user = patient_intended
 
-        except:
+        except Patient.DoesNotExist:
             return Response(
                 {
                     'error':"User Doesn't exist"
                 },
-                status.HTTP_401_UNAUTHORIZED
+                status=status.HTTP_404_NOT_FOUND
             )
 
     if not hasattr(user, 'credentials') or user.credentials is None:
@@ -107,16 +107,23 @@ def fetch_data(request):
             'diastolic_blood_pressure': blood_pressure_data['diastolic'],
             'heart_rate' : heart_rate_data,
             'oxygen_sat' : oxygen_saturation_data
-            }
+            },
+            status=status.HTTP_200_OK
         )
     except HttpError as e:
+        if e.resp.status == 401:
+            return Response(
+                {'error': 'Google authentication expired. Please reconnect Google Fit.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         return Response(
             {'error': f'Google Fitness API error: {str(e)}'},
             status=status.HTTP_502_BAD_GATEWAY
         )
     except Exception as e:
         return Response(
-            {'error': f'Server error: {str(e)}'},
+            {'error': 'Unkown Error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
@@ -227,22 +234,21 @@ def Ai_pred(request):
             )
         try:
             patient_intended = Patient.objects.get(email = patient_email)
-            if patient_intended.doctor != user:
+            if ValidateDoctorToPatient(user,patient_intended):
                 return Response(
                 {
                     'error':"User Not Assigned to this Doctor"
                 },
-                status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN
             )
-            else:
-                user = patient_intended
+            user = patient_intended
 
-        except:
+        except Patient.DoesNotExist:
             return Response(
                 {
                     'error':"User Doesn't exist"
                 },
-                status.HTTP_401_UNAUTHORIZED
+                status=status.HTTP_404_NOT_FOUND
             )
 
     bpm_readings = UserBPM.objects.filter(patient = user).values('heart_rate')
@@ -267,7 +273,7 @@ def Ai_pred(request):
             )
         response.raise_for_status()
         prediction = response.json()
-        return Response(prediction)
+        return Response(prediction,status=status.HTTP_200_OK)
     
     except requests.exceptions.Timeout:
         return Response(
@@ -284,3 +290,7 @@ def Ai_pred(request):
             {'error': 'Invalid response from AI prediction service'},
             status=status.HTTP_502_BAD_GATEWAY
         )
+    
+def ValidateDoctorToPatient(doctor,patient)-> bool:
+    return doctor == patient.doctor
+
