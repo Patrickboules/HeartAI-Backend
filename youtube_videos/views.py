@@ -38,19 +38,14 @@ def get_video(request):
     except Videos.DoesNotExist:
         return Response(
             {
-                "Error":"Video Doesn't Exist"
+                "error":"Video Doesn't Exist"
             },
-            status.HTTP_404_NOT_FOUND
+            status=status.HTTP_404_NOT_FOUND
         )
     except (ValueError, ValidationError):
         return Response(
             {'error': 'Invalid video ID format'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
-    except Videos.DoesNotExist:
-        return Response(
-            {'error': "Video doesn't exist"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+
 
